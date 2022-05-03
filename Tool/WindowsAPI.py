@@ -74,3 +74,11 @@ def key_check():
         direction.append("Down")
 
     return operations, direction
+
+
+if __name__ == '__main__':
+    from time import sleep
+    sleep(5)
+    station_size = (230, 230, 1670, 930)
+    station = cv2.resize(cv2.cvtColor(grab_screen(station_size), cv2.COLOR_RGBA2RGB),(1000,500))
+    cv2.imwrite('test.png', station)

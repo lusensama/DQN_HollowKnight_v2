@@ -4,10 +4,7 @@ import collections
 import cv2
 import win32gui, win32ui, win32con, win32api
 import numpy as np
-import tensorflow as tf
-from Tool.GetHP import Hp_getter
-import Tool.cluster
-# from GetHP import Hp_getter
+import torch
 
 class FrameBuffer(threading.Thread):
   def __init__(self, threadID, name, width,height,  maxlen=5):
@@ -33,11 +30,7 @@ class FrameBuffer(threading.Thread):
     self.bmp = win32ui.CreateBitmap()
     self.bmp.CreateCompatibleBitmap(self.srcdc, self.width, self.height)
 
-    self.hp = Hp_getter()
-
   def run(self):
-    # time.sleep(2)
-    # self.get_frame()
     while not self.stopped():
       self.get_frame()
       time.sleep(0.05)
@@ -48,18 +41,10 @@ class FrameBuffer(threading.Thread):
 
   def get_frame(self):
     self.lock.acquire(blocking=True)
-    station = cv2.resize(cv2.cvtColor(self.grab_screen(), cv2.COLOR_RGBA2RGB),(self.WIDTH,self.HEIGHT))
-    # TODO: incorporate clustering here
-    sc = self.hp.get_hornet_pic()
-    # cv2.imwrite(f'frame{time.time()}.png', sc)
-    if sc is not None:
-        pred = Tool.cluster.get_boss_pred(sc)
-        pred = pred.cpu().data / 29 * 255
-        station[0:3, 0:1440, 0:3] = pred
-        
+    station = cv2.resize(cv2.cvtColor(self.grab_screen(), cv2.COLOR_RGBA2GRAY),(self.WIDTH,self.HEIGHT))
     # print('image write')
     # cv2.imwrite(f'frame{time.time()}.png', station)
-    self.buffer.append(tf.convert_to_tensor(station))
+    self.buffer.append(torch.FloatTensor(station))
     self.lock.release()
 
   def get_buffer(self):
@@ -68,7 +53,7 @@ class FrameBuffer(threading.Thread):
     for f in self.buffer:
       stations.append(f)
     self.lock.release()
-    return stations
+    return torch.stack(stations)
 
   def stop(self):
     self._stop_event.set()
@@ -90,5 +75,6 @@ class FrameBuffer(threading.Thread):
 
 
 if __name__ == '__main__':
+    time.sleep(2)
     thread1 = FrameBuffer(1, "FrameBuffer", 400, 200, maxlen=4)
     thread1.start()

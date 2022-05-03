@@ -19,6 +19,8 @@ C = 0x43
 X = 0x58
 Z = 0x5A
 
+# need to change the keyboard setting, C to jump, left shift to rush, skill (dream nail) to Z
+
 # move actions
 # 0
 def Nothing():
@@ -179,7 +181,9 @@ def restart():
     time.sleep(1)
     while True:
         station = cv2.resize(cv2.cvtColor(grab_screen(station_size), cv2.COLOR_RGBA2RGB),(1000,500))
-        if station[187][612][0] > 200: 
+        # cv2.imwrite('statue.png', station)
+        # print(station[187][612][0])
+        if station[187][612][0] >= 200: 
             # PressKey(DOWN_ARROW)
             # time.sleep(0.1)
             # ReleaseKey(DOWN_ARROW)
@@ -190,17 +194,23 @@ def restart():
         else:
             Look_up()
             time.sleep(0.2)
+    print("start playing game, new round")
 
 
 # List for action functions
 Actions = [Attack, Attack_Up,
            Short_Jump, Mid_Jump, Skill_Up, 
            Skill_Down, Rush, Cure]
+
 Directions = [Move_Left, Move_Right, Turn_Left, Turn_Right]
 # Run the action
 def take_action(action):
     Actions[action]()
-
+    
+def update_action():
+    global Actions
+    Actions = [Attack, Attack_Up, Short_Jump, Mid_Jump, Rush]
+    
 def take_direction(direc):
     Directions[direc]()
 
@@ -217,3 +227,11 @@ class TackAction(threading.Thread):
     def run(self):
         take_direction(self.direction)
         take_action(self.action)
+        
+if __name__ == '__main__':
+    from SendKey import PressKey, ReleaseKey
+    from WindowsAPI import grab_screen
+    station_size = (230, 230, 1670, 930)
+    station = cv2.resize(cv2.cvtColor(grab_screen(station_size), cv2.COLOR_RGBA2RGB),(1000,500))
+    # cv2.imshow(station)
+    print(station[187][300][0] )
