@@ -1,5 +1,5 @@
 # Readme
-> This repository contains CV course projects.
+> I am keeping upgrading this, so the code may change everyday.
 
 ## Environment
 

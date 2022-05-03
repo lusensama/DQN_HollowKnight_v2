@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-import tensorflow as tf
+
 
 class Agent:
-    def __init__(self,act_dim,algorithm,e_greed=0.1,e_greed_decrement=0):
+    def __init__(self,act_dim,model,e_greed=0.1,e_greed_decrement=0):
         self.act_dim = act_dim
-        self.algorithm = algorithm
+        self.model= model
         self.e_greed = e_greed
         self.e_greed_decrement = e_greed_decrement
 
 
     def sample(self, station, soul, hornet_x, hornet_y, player_x, hornet_skill1):
         
-        pred_move, pred_act = self.algorithm.model.predict(station)
+        pred_move, pred_act = self.model.predict(station)
         # print(pred_move)
         # print(self.e_greed)
         pred_move = pred_move.numpy()
@@ -31,10 +31,10 @@ class Agent:
             act = self.better_action(soul, hornet_x, hornet_y, player_x, hornet_skill1)
         else:
             act = np.argmax(pred_act)
-            if soul < 33:
-                if act == 4 or act == 5:
-                    pred_act[0][4] = -30
-                    pred_act[0][5] = -30
+            # if soul < 33:
+            #     if act == 4 or act == 5:
+            #         pred_act[0][4] = -30
+            #         pred_act[0][5] = -30
             act = np.argmax(pred_act)
 
         self.e_greed = max(
@@ -78,29 +78,29 @@ class Agent:
         dis = abs(player_x - hornet_x)
         if hornet_skill1:
             if dis < 3:
-                return 6
+                return 4
             else:
                 return 1
         
-        if hornet_y > 34 and dis < 5 and soul >= 33:
-            return 4
+        # if hornet_y > 34 and dis < 5 and soul >= 33:
+        #     return 4
         
         if dis < 1.5:
-            return 6
+            return 4
         elif dis < 5:
             if hornet_y > 32:
-                return 6
+                return 4
             else:
                 act = np.random.randint(self.act_dim)
-                if soul < 33:
-                    while act == 4 or act == 5:
-                        act = np.random.randint(self.act_dim)
+                # if soul < 33:
+                #     while act == 4 or act == 5:
+                #         act = np.random.randint(self.act_dim)
                 return act
         elif dis < 12:
             act = np.random.randint(2)
             return 2 + act
         else:
-            return 6
+            return 4
                 
 if __name__ == '__main__':
     import cv2 

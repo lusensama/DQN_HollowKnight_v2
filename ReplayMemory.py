@@ -5,11 +5,12 @@ import pickle
 import os
 
 class ReplayMemory:
-    def __init__(self,max_size,file_name):
+    def __init__(self,max_size,file_name,flag=0):
         self.size = max_size
         self.count = 0
         self.file_name = file_name
         self.buffer = collections.deque(maxlen=max_size)
+        self.flag = flag
 
     def append(self,exp):
         self.count += 1
@@ -41,12 +42,21 @@ class ReplayMemory:
             next_obs_batch.append(s_p)
             done_batch.append(done)
 
-        return np.array(obs_batch).astype('float32'), \
-            np.array(action_batch).astype('int32'), np.array(reward_batch).astype('float32'),\
-            np.array(next_obs_batch).astype('float32'), np.array(done_batch).astype('float32')
+        if self.flag == 1:
+            # A2C return 
+            return obs_batch, \
+                np.array(action_batch).astype('int32'), np.array(reward_batch).astype('float32'),\
+                next_obs_batch, np.array(done_batch).astype('float32')
+        elif self.flag == 0:
+            # DQN return
+            return np.array(obs_batch).astype('float32'), \
+                np.array(action_batch).astype('int32'), np.array(reward_batch).astype('float32'),\
+                np.array(next_obs_batch).astype('float32'), np.array(done_batch).astype('float32')
 
     def save(self,file_name):
         count = 0
+        if not os.path.exists(file_name):
+            os.mkdir(file_name)
         for x in os.listdir(file_name):
             count += 1
         file_name = file_name + "/memory_" + str(count) +".txt"

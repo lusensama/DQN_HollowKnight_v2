@@ -1,27 +1,24 @@
 # -*- coding: utf-8 -*-
 import numpy as np
-from tensorflow.keras.models import load_model
-import tensorflow as tf
 import os
 import cv2
 import time
 import collections
 import matplotlib.pyplot as plt
 
-from Model import Model
-from DQN import DQN
-from Agent import Agent
+from ActorCritic import ac,Operator
+from Agent_ac import Agent
 from ReplayMemory import ReplayMemory
 
 
 import Tool.Helper
 import Tool.Actions
 from Tool.Helper import mean, is_end
-from Tool.Actions import take_action, restart,take_direction, TackAction
+from Tool.Actions import take_action, update_action, restart,take_direction
 from Tool.WindowsAPI import grab_screen
 from Tool.GetHP import Hp_getter
 from Tool.UserInput import User
-from Tool.FrameBuffer import FrameBuffer
+from Tool.FrameBuffer_ac import FrameBuffer
 
 window_size = (0,0,1920,1017)
 station_size = (230, 230, 1670, 930)
@@ -30,41 +27,49 @@ HP_WIDTH = 768
 HP_HEIGHT = 407
 WIDTH = 400
 HEIGHT = 200
-ACTION_DIM = 7
 FRAMEBUFFERSIZE = 4
-INPUT_SHAPE = (FRAMEBUFFERSIZE, HEIGHT, WIDTH, 3)
+INPUT_SHAPE = (FRAMEBUFFERSIZE, HEIGHT, WIDTH)
 
-MEMORY_SIZE = 200  # replay memory的大小，越大越占用内存
+MEMORY_SIZE = 600  # replay memory的大小，越大越占用内存
 MEMORY_WARMUP_SIZE = 24  # replay_memory 里需要预存一些经验数据，再从里面sample一个batch的经验让agent去learn
 BATCH_SIZE = 10  # 每次给agent learn的数据数量，从replay memory随机里sample一批数据出来
-LEARNING_RATE = 0.00001  # 学习率
+LEARNING_RATE = 0.0001  # 学习率
 GAMMA = 0
 
 action_name = ["Attack", "Attack_Up",
-           "Short_Jump", "Mid_Jump", "Skill_Up", 
-           "Skill_Down", "Rush", "Cure"]
+           "Short_Jump", "Mid_Jump", "Rush"]
+ACTION_DIM = len(action_name)
+update_action()
 
 move_name = ["Move_Left", "Move_Right", "Turn_Left", "Turn_Right"]
+MOVE_DIM = len(move_name)
 
 DELAY_REWARD = 1
 
 
 
 
-def run_episode(hp, algorithm,agent,act_rmp_correct, move_rmp_correct,PASS_COUNT,paused):
+def run_episode(hp, model,agent,act_rmp_correct, move_rmp_correct,PASS_COUNT,paused):
     restart()
+    loss_policy_move, entropy_loss_move, loss_value_move = [],[],[]
+    loss_policy_act, entropy_loss_act, loss_value_act = [],[],[]
     # learn while load game
     for i in range(8):
         if (len(move_rmp_correct) > MEMORY_WARMUP_SIZE):
             # print("move learning")
             batch_station,batch_actions,batch_reward,batch_next_station,batch_done = move_rmp_correct.sample(BATCH_SIZE)
-            algorithm.move_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)   
+            loss_1, loss_2, loss_3 = model.move_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)   
+            loss_policy_move.append(loss_1)
+            entropy_loss_move.append(loss_2)
+            loss_value_move.append(loss_3)
 
         if (len(act_rmp_correct) > MEMORY_WARMUP_SIZE):
             # print("action learning")
             batch_station,batch_actions,batch_reward,batch_next_station,batch_done = act_rmp_correct.sample(BATCH_SIZE)
-            algorithm.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
-
+            loss_1, loss_2, loss_3 = model.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
+            loss_policy_act.append(loss_1)
+            entropy_loss_act.append(loss_2)
+            loss_value_act.append(loss_3)
     
     step = 0
     done = 0
@@ -163,7 +168,7 @@ def run_episode(hp, algorithm,agent,act_rmp_correct, move_rmp_correct,PASS_COUNT
         # if (len(act_rmp) > MEMORY_WARMUP_SIZE and int(step/ACTION_SEQ) % LEARN_FREQ == 0):
         #     print("action learning")
         #     batch_station,batch_actions,batch_reward,batch_next_station,batch_done = act_rmp.sample(BATCH_SIZE)
-        #     algorithm.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
+        #     model.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
 
         total_reward += act_reward
         paused = Tool.Helper.pause_game(paused)
@@ -180,57 +185,64 @@ def run_episode(hp, algorithm,agent,act_rmp_correct, move_rmp_correct,PASS_COUNT
 
     thread1.stop()
 
-    for i in range(8):
+    for i in range(80):
         if (len(move_rmp_correct) > MEMORY_WARMUP_SIZE):
             # print("move learning")
             batch_station,batch_actions,batch_reward,batch_next_station,batch_done = move_rmp_correct.sample(BATCH_SIZE)
-            algorithm.move_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)   
-
+            loss_1, loss_2, loss_3 = model.move_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)   
+            loss_policy_move.append(loss_1)
+            entropy_loss_move.append(loss_2)
+            loss_value_move.append(loss_3)
         if (len(act_rmp_correct) > MEMORY_WARMUP_SIZE):
             # print("action learning")
             batch_station,batch_actions,batch_reward,batch_next_station,batch_done = act_rmp_correct.sample(BATCH_SIZE)
-            algorithm.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
+            loss_1, loss_2, loss_3 = model.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
+            loss_policy_act.append(loss_1)
+            entropy_loss_act.append(loss_2)
+            loss_value_act.append(loss_3)
     # if (len(move_rmp_wrong) > MEMORY_WARMUP_SIZE):
     #     # print("move learning")
     #     batch_station,batch_actions,batch_reward,batch_next_station,batch_done = move_rmp_wrong.sample(1)
-    #     algorithm.move_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)   
+    #     model.move_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)   
 
     # if (len(act_rmp_wrong) > MEMORY_WARMUP_SIZE):
     #     # print("action learning")
     #     batch_station,batch_actions,batch_reward,batch_next_station,batch_done = act_rmp_wrong.sample(1)
-    #     algorithm.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
-
-    return total_reward, step, PASS_COUNT, self_hp, boss_hp_value, end_time - start_time
+    #     model.act_learn(batch_station,batch_actions,batch_reward,batch_next_station,batch_done)
+    total_loss = np.array([loss_policy_move, entropy_loss_move, loss_value_move, loss_policy_act, entropy_loss_act, loss_value_act])
+    return total_reward, step, PASS_COUNT, self_hp, boss_hp_value, end_time - start_time, total_loss
 
 
 if __name__ == '__main__':
 
     # In case of out of memory
-    config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
-    config.gpu_options.allow_growth = True      #程序按需申请内存
-    sess = tf.compat.v1.Session(config = config)
+    # config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+    # config.gpu_options.allow_growth = True      #程序按需申请内存
+    # sess = tf.compat.v1.Session(config = config)
 
     
     total_remind_hp = 0
 
-    act_rmp_correct = ReplayMemory(MEMORY_SIZE, file_name='./act_memory')         # experience pool
-    move_rmp_correct = ReplayMemory(MEMORY_SIZE,file_name='./move_memory')         # experience pool
+    act_rmp_correct = ReplayMemory(MEMORY_SIZE, file_name='./act_memory',flag=1)         # experience pool
+    move_rmp_correct = ReplayMemory(MEMORY_SIZE,file_name='./move_memory',flag=1)         # experience pool
     
     # create a file to record the fighting
     if not os.path.exists('record.txt'):
         with open('record.txt','w') as f:
             f.write('episode, result, self hp, boss hp, total reward, time\n')
-        
+    if not os.path.exists('loss.txt'):
+        with open('loss.txt','w') as f:
+            f.write('loss_policy_move, entropy_loss_move, loss_value_move, loss_policy_act, entropy_loss_act, loss_value_act\n')    
     # new model, if exit save file, load it
-    model = Model(INPUT_SHAPE, ACTION_DIM)  
+    ac_model = Operator(INPUT_SHAPE, ACTION_DIM, MOVE_DIM, LEARNING_RATE)  
 
     # Hp counter
     hp = Hp_getter()
 
 
-    model.load_model()
-    algorithm = DQN(model, gamma=GAMMA, learnging_rate=LEARNING_RATE)
-    agent = Agent(ACTION_DIM,algorithm,e_greed=0.12,e_greed_decrement=1e-6)
+    ac_model.load_model()
+    
+    agent = Agent(ACTION_DIM,ac_model,e_greed=0.12,e_greed_decrement=1e-6)
     
     # get user input, no need anymore
     # user = User()
@@ -247,12 +259,10 @@ if __name__ == '__main__':
     while episode < max_episode:    # 训练max_episode个回合，test部分不计算入episode数量
         # 训练
         episode += 1     
-        # if episode % 20 == 1:
-        #     algorithm.replace_target()
 
-        total_reward, total_step, PASS_COUNT, remain_self_hp, remain_boss_hp, time_period = run_episode(hp, algorithm,agent,act_rmp_correct, move_rmp_correct, PASS_COUNT, paused)
-        if episode % 10 == 1:
-            model.save_mode()
+        total_reward, total_step, PASS_COUNT, remain_self_hp, remain_boss_hp, time_period, total_loss = run_episode(hp, ac_model,agent,act_rmp_correct, move_rmp_correct, PASS_COUNT, paused)
+        if episode % 5 == 0:
+            ac_model.save_model()
         # if episode % 5 == 0:
         #     move_rmp_correct.save(move_rmp_correct.file_name)
         # if episode % 5 == 0:
@@ -263,4 +273,8 @@ if __name__ == '__main__':
         # write the fighting results in this episode
         with open('record.txt','a') as f:
             f.write("%d, %d, %d, %d, %.3f, %.3f\n"%(episode,PASS_COUNT-prev_count,remain_self_hp,remain_boss_hp,total_reward,time_period))
+        with open('loss.txt','a') as f:
+            f.write("Episode: %d\n"%episode)
+            for i in range(total_loss.shape[1]):
+                f.write(",".join([str(j) for j in total_loss[:,i]])+"\n")
         prev_count = PASS_COUNT
