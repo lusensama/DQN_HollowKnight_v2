@@ -15,7 +15,7 @@
 - Now I only write train.py but not test.py (the file is just test some base functions not for model), you can write it by yourself if you get a good model.
 - The saving file for the game can be found in 'save' folder, if you never played this game, please move `/save_file/user3.dat` into save folder (usually `C:\user\_username_\AppData\LocalLow\Team Cherry\Hollow Knight`)
 - Adjust the game resolution to 1920*1080 
-- Run `train.py` for DQN (tensorflow), `train_ac.py` for A2C (pytorch). Those files can run separately.  
+- Run `train.py` for DQN (tensorflow), `train_ac.py` for A2C (pytorch). Those files can run separately. Note that we have uploaded the model for the DQN to the folder `./Model`. But the models for A2C and deep clustering are too large to be directly uploaded to GitHub. You can download the models [here](https://drive.google.com/drive/folders/1Q-eCMJVrFKx-hhsvFBzu1pG7oK1RHvqe?usp=sharing).  
 - Keep the game window at the forefront 
 - Let the little knight stand in front of the statue of the boss in the godhome
 - Press `F1` to start trainning. (Also you can use `F1` to stop trainning)
