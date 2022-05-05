@@ -6,29 +6,27 @@
 - windows 10 (We use win32 API to operate the little knight and get screenshots)
 - python 3.8.8
 - python liberary: find in `requirments.txt`
-- Hollow Knight
+- Hollow Knight 1.4.3.2. (important!)
 - HP Bar mod for Hollow Knight (In order to get the boss hp to calculate the reward, please find the mod in `./hollow_knight_Data/`, and then copy the mod file to the game folder)
-- CUDA and cudnn for tensorflow
+- CUDA and cudnn for tensorflow and pytorch
 
 ## Usage
 
 - Now I only write train.py but not test.py (the file is just test some base functions not for model), you can write it by yourself if you get a good model.
-- I upload a saving file, if you never played this game, please move `/save_file/user3.dat` into save folder (usually `C:\user\_username_\AppData\LocalLow\Team Cherry\Hollow Knight`)
-- Adjust the game resolution to 1920*1017 
-- Run train.py
-- Keep the game window at the forefront (Since I cannot send keyboard event in the background, I tried `PossMassage()` in win32 API, but it did not work well.
-                                         If you have any idea about sending keyboard event in the background, please let me know)
+- The saving file for the game can be found in 'save' folder, if you never played this game, please move `/save_file/user3.dat` into save folder (usually `C:\user\_username_\AppData\LocalLow\Team Cherry\Hollow Knight`)
+- Adjust the game resolution to 1920*1080 
+- Run train.py for DQN (tensorflow), train_ac.py for A2C (pytorch). Those files can run separately.  
+- Keep the game window at the forefront 
 - Let the little knight stand in front of the statue of the boss in the godhome
 - Press `F1` to start trainning. (Also you can use `F1` to stop trainning)
-
+- We have uploaded the collected data in the folder 'process_data', just run 'process.py' to get our evaluation results
 
 ## Code structure
-- Most training configuration is in `train.py`
-- `Agent.py` gets output actions from our model
-- `DQN.py` is the learning algorithm
-- `Model.py` defines the model we use
+- Most training configuration is in `train.py` and 'train_ac.py'
+- `Agent.py` and 'Agent_ac.py' get output actions from two different models, respectively
+- `DQN.py` 'ActorCritic.py' are the learning algorithms
+- `Model.py` defines the model wrapper for DQN (A2C will not use it)
 - `ReplayMemory.py` defines the experience pool for learning
-- `test.py` is useless, I use it to test basic functions and fix bugs
 
 - Files in `./Tool` are for other functions we may use
 - `Actions` defines actions for little knight and restart game script
@@ -40,28 +38,17 @@
 
 ## Changes
 
-- Add delay reward of an action
+- add 'cluster.py' in Tool
+- add 'boss_predictor.pth.tar' in model
+- Modified 'FrameBuffer.py' change get_frame() function, incorporate boss states clustering
+- Modified 'GetHP.py' change the get_hornet_pic() function
+- Modified 'ReplayMemory.py': add a default argument flag when initializing the class to differentiate a2c and DQN, use flag to select different return values, do no need any change in original DQN 'train.py', add flag argument in 'train_ac.py'
 
-- Make the mdoel output an action sequence
+- add 'train_ac.py'
+- add 'ActorCritic.py'
+- add 'FrameBuffer_ac.py'
+- add 'Agent_ac.py'
+- Modified 'Actions.py': add function update_action()
 
-- Use two models to output actions. One is for moving and the other is for attack/jump/skill
-
-- Apply RESNET
-
-- Add LSTM layers
-
-- Merge a part of action model and move model
-
-- Remvoe LSTM layers
-
-- No more Q value, reward is enough, Q value is too complex to learn.
-
-- Use kernel32 to read player Hp and hornet Hp.
-
-- Use different criteria to evaluate move and actions.
-
-- Do not use skill without souls
-
-- Use more precise scoring standards
 
 
